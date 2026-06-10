@@ -35,7 +35,8 @@ namespace ER_StationAgent
         private MessageArchive msgArch = new();
 
         // Stack Sender Timer
-        System.Timers.Timer sendTimer = new System.Timers.Timer(6000);
+        int SendCycle = 6000; // 6 seconds
+        System.Timers.Timer sendTimer = new(6000);
 
         // =========================
         // NETWORK / COMMUNICATION
@@ -444,7 +445,7 @@ namespace ER_StationAgent
                         // Add message to Stack
                         AddToStack(mpl);
 
-                        if(sendTimer.Enabled == false) 
+                        if (sendTimer.Enabled == false)
                         {
                             StartTimer();
                         }
@@ -729,6 +730,12 @@ namespace ER_StationAgent
                 sendTimer.Enabled = false;
                 Log($"Timer Status: {sendTimer.Enabled}");
             }
+        }
+
+        private void btnSetSendCycle_Click(object sender, EventArgs e)
+        {
+            SendCycle = int.Parse(tbSendCycle.Text);
+            sendTimer.Interval = SendCycle;
         }
     }
 

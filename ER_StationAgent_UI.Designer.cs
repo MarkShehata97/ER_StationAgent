@@ -29,8 +29,8 @@
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
-            DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle2 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle3 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle4 = new DataGridViewCellStyle();
             connLabel = new Label();
             ConnIndi = new Label();
             splitter1 = new Splitter();
@@ -54,6 +54,10 @@
             groupBox4 = new GroupBox();
             label1 = new Label();
             dataGridViewEn = new DataGridView();
+            label2 = new Label();
+            tbSendCycle = new TextBox();
+            label3 = new Label();
+            btnSetSendCycle = new Button();
             rtbContextMenu.SuspendLayout();
             groupBox1.SuspendLayout();
             groupBox2.SuspendLayout();
@@ -374,23 +378,23 @@
             // dataGridViewEn
             // 
             dataGridViewEn.BackgroundColor = Color.FromArgb(21, 23, 30);
-            dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle1.BackColor = Color.FromArgb(15, 17, 42);
-            dataGridViewCellStyle1.Font = new Font("Segoe UI", 10F);
-            dataGridViewCellStyle1.ForeColor = SystemColors.Control;
-            dataGridViewCellStyle1.SelectionBackColor = SystemColors.HotTrack;
-            dataGridViewCellStyle1.SelectionForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True;
-            dataGridViewEn.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
+            dataGridViewCellStyle3.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle3.BackColor = Color.FromArgb(15, 17, 42);
+            dataGridViewCellStyle3.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle3.ForeColor = SystemColors.Control;
+            dataGridViewCellStyle3.SelectionBackColor = SystemColors.HotTrack;
+            dataGridViewCellStyle3.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle3.WrapMode = DataGridViewTriState.True;
+            dataGridViewEn.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle3;
             dataGridViewEn.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = Color.FromArgb(21, 23, 30);
-            dataGridViewCellStyle2.Font = new Font("Segoe UI", 8F);
-            dataGridViewCellStyle2.ForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle2.SelectionBackColor = SystemColors.HotTrack;
-            dataGridViewCellStyle2.SelectionForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle2.WrapMode = DataGridViewTriState.False;
-            dataGridViewEn.DefaultCellStyle = dataGridViewCellStyle2;
+            dataGridViewCellStyle4.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle4.BackColor = Color.FromArgb(21, 23, 30);
+            dataGridViewCellStyle4.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle4.ForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle4.SelectionBackColor = SystemColors.HotTrack;
+            dataGridViewCellStyle4.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle4.WrapMode = DataGridViewTriState.False;
+            dataGridViewEn.DefaultCellStyle = dataGridViewCellStyle4;
             dataGridViewEn.GridColor = Color.DarkGray;
             dataGridViewEn.Location = new Point(406, 79);
             dataGridViewEn.Name = "dataGridViewEn";
@@ -398,12 +402,69 @@
             dataGridViewEn.TabIndex = 0;
             dataGridViewEn.CellEndEdit += dataGridViewEn_CellEndEdit;
             // 
+            // label2
+            // 
+            label2.BackColor = Color.FromArgb(21, 23, 30);
+            label2.FlatStyle = FlatStyle.Flat;
+            label2.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold);
+            label2.ForeColor = Color.FromArgb(230, 234, 242);
+            label2.Location = new Point(991, 41);
+            label2.Margin = new Padding(0);
+            label2.Name = "label2";
+            label2.Size = new Size(87, 35);
+            label2.TabIndex = 27;
+            label2.Text = "Read Time:";
+            label2.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // tbSendCycle
+            // 
+            tbSendCycle.Font = new Font("Segoe UI", 11.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            tbSendCycle.Location = new Point(1081, 45);
+            tbSendCycle.Name = "tbSendCycle";
+            tbSendCycle.Size = new Size(59, 27);
+            tbSendCycle.TabIndex = 31;
+            tbSendCycle.Text = "6000";
+            // 
+            // label3
+            // 
+            label3.FlatStyle = FlatStyle.Flat;
+            label3.Font = new Font("Segoe UI", 11.25F);
+            label3.ForeColor = Color.FromArgb(230, 234, 242);
+            label3.Location = new Point(1139, 41);
+            label3.Margin = new Padding(0);
+            label3.Name = "label3";
+            label3.Size = new Size(37, 35);
+            label3.TabIndex = 32;
+            label3.Text = "ms";
+            label3.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // btnSetSendCycle
+            // 
+            btnSetSendCycle.BackColor = Color.FromArgb(20, 34, 60);
+            btnSetSendCycle.BackgroundImageLayout = ImageLayout.None;
+            btnSetSendCycle.FlatAppearance.BorderColor = Color.FromArgb(34, 94, 197);
+            btnSetSendCycle.FlatStyle = FlatStyle.Flat;
+            btnSetSendCycle.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold);
+            btnSetSendCycle.ForeColor = SystemColors.ButtonFace;
+            btnSetSendCycle.Location = new Point(1180, 41);
+            btnSetSendCycle.Margin = new Padding(0);
+            btnSetSendCycle.Name = "btnSetSendCycle";
+            btnSetSendCycle.Size = new Size(43, 35);
+            btnSetSendCycle.TabIndex = 14;
+            btnSetSendCycle.Text = "Set";
+            btnSetSendCycle.UseVisualStyleBackColor = false;
+            btnSetSendCycle.Click += btnSetSendCycle_Click;
+            // 
             // ER_StationAgent_UI
             // 
             AutoScaleDimensions = new SizeF(11F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.FromArgb(21, 23, 30);
             ClientSize = new Size(1257, 592);
+            Controls.Add(btnSetSendCycle);
+            Controls.Add(label3);
+            Controls.Add(tbSendCycle);
+            Controls.Add(label2);
             Controls.Add(dataGridViewEn);
             Controls.Add(label1);
             Controls.Add(groupBox4);
@@ -450,5 +511,9 @@
         private Label label1;
         private ListBox listBox1;
         private DataGridView dataGridViewEn;
+        private Label label2;
+        private TextBox tbSendCycle;
+        private Label label3;
+        private Button btnSetSendCycle;
     }
 }
