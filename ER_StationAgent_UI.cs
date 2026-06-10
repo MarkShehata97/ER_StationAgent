@@ -182,6 +182,11 @@ namespace ER_StationAgent
             // Push updated data to Ventuz.
             SendMsgToVentuz(STATION!);
         }
+        private void btnSetSendCycle_Click(object sender, EventArgs e)
+        {
+            SendCycle = int.Parse(tbSendCycle.Text);
+            sendTimer.Interval = SendCycle;
+        }
 
         // =========================
         // INITIALIZATION
@@ -730,12 +735,6 @@ namespace ER_StationAgent
                 sendTimer.Enabled = false;
                 Log($"Timer Status: {sendTimer.Enabled}");
             }
-        }
-
-        private void btnSetSendCycle_Click(object sender, EventArgs e)
-        {
-            SendCycle = int.Parse(tbSendCycle.Text);
-            sendTimer.Interval = SendCycle;
         }
     }
 
