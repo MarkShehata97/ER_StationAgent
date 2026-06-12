@@ -29,8 +29,8 @@
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
-            DataGridViewCellStyle dataGridViewCellStyle3 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle4 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle2 = new DataGridViewCellStyle();
             connLabel = new Label();
             ConnIndi = new Label();
             splitter1 = new Splitter();
@@ -338,7 +338,7 @@
             listBox1.ForeColor = Color.FromArgb(230, 234, 242);
             listBox1.FormattingEnabled = true;
             listBox1.ItemHeight = 13;
-            listBox1.Items.AddRange(new object[] { "/MESSAGES", "/MESSAGES_OVER", "/ARCHIVE_EN", "/ARCHIVE_AR", "/DEPLOYMENT" });
+            listBox1.Items.AddRange(new object[] { "/MESSAGES", "/MESSAGES_OVER", "/ARCHIVE_EN", "/ARCHIVE_AR", "/DEPLOYMENT_TEMPLATE" });
             listBox1.Location = new Point(167, 140);
             listBox1.Name = "listBox1";
             listBox1.SelectionMode = SelectionMode.None;
@@ -378,23 +378,23 @@
             // dataGridViewEn
             // 
             dataGridViewEn.BackgroundColor = Color.FromArgb(21, 23, 30);
-            dataGridViewCellStyle3.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle3.BackColor = Color.FromArgb(15, 17, 42);
-            dataGridViewCellStyle3.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            dataGridViewCellStyle3.ForeColor = SystemColors.Control;
-            dataGridViewCellStyle3.SelectionBackColor = SystemColors.HotTrack;
-            dataGridViewCellStyle3.SelectionForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle3.WrapMode = DataGridViewTriState.True;
-            dataGridViewEn.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle3;
+            dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle1.BackColor = Color.FromArgb(15, 17, 42);
+            dataGridViewCellStyle1.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle1.ForeColor = SystemColors.Control;
+            dataGridViewCellStyle1.SelectionBackColor = SystemColors.HotTrack;
+            dataGridViewCellStyle1.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True;
+            dataGridViewEn.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
             dataGridViewEn.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridViewCellStyle4.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle4.BackColor = Color.FromArgb(21, 23, 30);
-            dataGridViewCellStyle4.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            dataGridViewCellStyle4.ForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle4.SelectionBackColor = SystemColors.HotTrack;
-            dataGridViewCellStyle4.SelectionForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle4.WrapMode = DataGridViewTriState.False;
-            dataGridViewEn.DefaultCellStyle = dataGridViewCellStyle4;
+            dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = Color.FromArgb(21, 23, 30);
+            dataGridViewCellStyle2.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle2.ForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle2.SelectionBackColor = SystemColors.HotTrack;
+            dataGridViewCellStyle2.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle2.WrapMode = DataGridViewTriState.False;
+            dataGridViewEn.DefaultCellStyle = dataGridViewCellStyle2;
             dataGridViewEn.GridColor = Color.DarkGray;
             dataGridViewEn.Location = new Point(406, 79);
             dataGridViewEn.Name = "dataGridViewEn";
@@ -476,6 +476,8 @@
             Margin = new Padding(5);
             Name = "ER_StationAgent_UI";
             Text = "Etihad Rail Station Agent";
+            FormClosing += ER_StationAgent_UI_FormClosing;
+            Shown += ER_StationAgent_UI_Shown;
             rtbContextMenu.ResumeLayout(false);
             groupBox1.ResumeLayout(false);
             groupBox2.ResumeLayout(false);

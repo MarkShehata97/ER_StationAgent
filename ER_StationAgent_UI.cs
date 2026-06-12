@@ -10,6 +10,7 @@ using System.Text.Json.Nodes;
 using System.Timers;
 using System.Threading;
 using static System.Collections.Specialized.BitVector32;
+using System;
 
 namespace ER_StationAgent
 {
@@ -64,6 +65,9 @@ namespace ER_StationAgent
         // Database controller instance
         private DbControl db;
 
+        // Playlist manager instance
+        private PlaylistManager? playlistManager;
+
         // =========================
         // CONSTRUCTOR
         // =========================
@@ -103,7 +107,7 @@ namespace ER_StationAgent
             };
 
             // Database initialization
-            db = new DbControl("station.db");
+            db = new DbControl("er_database.db");
 
             // Connect Archive Event to Send Trigger
             msgArch.ArchRefresh += SendArchToVentuz;
@@ -112,7 +116,26 @@ namespace ER_StationAgent
         // =========================
         // UI EVENTS
         // =========================
+        private void ER_StationAgent_UI_Shown(object sender, EventArgs e)
+        {
+            Logger.Instance.OnLog += Log;
 
+            int index = cmbStation.FindStringExact(Settings.Station);
+            if (index >= 0)
+            {
+                cmbStation.SelectedIndex = index;
+            }
+
+            btnStart_Click(null, EventArgs.Empty);
+
+            _ = RestoreLastDeploymentAsync();
+        }
+        private void ER_StationAgent_UI_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            Logger.Instance.Log("Closing App...");
+            Logger.Instance.OnLog -= Log;
+            btnStop_Click(null, EventArgs.Empty);
+        }
         private void clearToolStripMenuItem_Click(object sender, EventArgs e)
         {
             // Clear UI Log
@@ -136,7 +159,7 @@ namespace ER_StationAgent
         {
             if (cmbStation.SelectedIndex == -1)
             {
-                Log("Error: Please Select A Station");
+                Logger.Instance.Log("Error: Please Select A Station");
                 return;
             }
 
@@ -150,7 +173,7 @@ namespace ER_StationAgent
             // Create cancellation token for listener loop
             cts = new CancellationTokenSource();
 
-            Log($"Starting listener: {STATION}");
+            Logger.Instance.Log($"Starting listener: {STATION}");
 
             // Update UI state for running listener
             btnStart.Enabled = false;
@@ -168,13 +191,19 @@ namespace ER_StationAgent
             // Cancel any ongoing HTTP requests
             http.CancelPendingRequests();
 
+            if (playlistManager != null && playlistManager.IsRunning)
+            {
+                Logger.Instance.Log("Stopping existing playlist...");
+                _ = Task.Run(async () => { await playlistManager.StopAsync(); });
+            }
+
             // Log stop action (may take time due to reconnect delay)
-            Log("Stopping... might take upto 30s...");
+            Logger.Instance.Log("Stopping... might take upto 30s...");
         }
         private void dataGridViewEn_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
             // Record successful cell edit.
-            Log($"Cell [{e.RowIndex},{e.ColumnIndex}] edit has been applied.");
+             Logger.Instance.Log($"Cell [{e.RowIndex},{e.ColumnIndex}] edit has been applied.");
 
             // Persist changes to storage.
             // msgStack.Save(STATION!);
@@ -194,25 +223,11 @@ namespace ER_StationAgent
 
         private void LoadStations()
         {
-            var stationFile = Path.Combine(AppContext.BaseDirectory, "Stations.txt");
-
-            if (File.Exists(stationFile))
-            {
-                allowedStations = File.ReadAllLines(stationFile)
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .Select(x => x.Trim())
-                    .ToArray();
-            }
-            else
-            {
-                Log("Stations.txt not found.");
-            }
-
             // Populate station dropdown with allowed stations
-            cmbStation.Items.AddRange(allowedStations);
+            cmbStation.Items.AddRange(Settings.AllowedStations);
 
             // Select first station by default
-            cmbStation.SelectedIndex = 0;
+            cmbStation.SelectedIndex = -1;
         }
         private void GridInit()
         {
@@ -243,7 +258,39 @@ namespace ER_StationAgent
             msgStack.LoadFromFiles(
                 $"Messages\\{STATION}_Messages.txt");
         }
+        private async Task RestoreLastDeploymentAsync()
+        {
+            try
+            {
+                // Optional: give startup a moment to settle
+                await Task.Delay(1000);
 
+                var deployment = await Task.Run(() =>
+                    db.GetLatestDeployment(Settings.Station));
+
+                if (deployment == null)
+                    return;
+
+                Logger.Instance.Log(
+                    $"Restoring last deployment: {deployment.Kind}");
+
+                switch (deployment.Kind)
+                {
+                    case "deployment-template":
+                        await HandleTemplate(deployment);
+                        break;
+
+                    case "deployment-playlist":
+                        await HandlePlaylist(deployment);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log(
+                    $"Failed to restore deployment: {ex.Message}");
+            }
+        }
         // =========================
         // CORE LOOP
         // =========================
@@ -278,14 +325,14 @@ namespace ER_StationAgent
                 }
                 catch (Exception ex)
                 {
-                    Log($"STREAM ERROR: {ex.Message}");
+                    Logger.Instance.Log($"STREAM ERROR: {ex.Message}");
                 }
 
                 if (ct.IsCancellationRequested)
                     break;
 
                 // Wait before reconnecting
-                Log($"Reconnecting in {backoff.TotalSeconds:0}s...");
+                Logger.Instance.Log($"Reconnecting in {backoff.TotalSeconds:0}s...");
                 await Task.Delay(backoff, ct);
 
                 // Exponential backoff
@@ -304,7 +351,7 @@ namespace ER_StationAgent
                 cts = null;
             });
 
-            Log("Listener stopped.");
+            Logger.Instance.Log("Listener stopped.");
         }
         private async Task ListenAsync(string station, CancellationToken ct)
         {
@@ -323,7 +370,7 @@ namespace ER_StationAgent
 
             res.EnsureSuccessStatusCode();
 
-            Log("Connected to stream.");
+            Logger.Instance.Log("Connected to stream.");
 
             // Read stream content
             using var stream = await res.Content.ReadAsStreamAsync(ct);
@@ -335,7 +382,7 @@ namespace ER_StationAgent
             // Process incoming SSE messages
             while (!ct.IsCancellationRequested)
             {
-                var line = await reader.ReadLineAsync();
+                var line = await reader.ReadLineAsync(ct);
                 if (line == null) break;
 
                 // Empty line indicates end of event
@@ -379,7 +426,7 @@ namespace ER_StationAgent
             }
             catch (Exception ex)
             {
-                Log($"Bad frame: {ex.Message}");
+                Logger.Instance.Log($"Bad frame: {ex.Message}");
                 return;
             }
 
@@ -403,86 +450,25 @@ namespace ER_StationAgent
             {
                 case "asset":
                     // Handle asset payload
-                    var apl = row.Payload.Deserialize<AssetPayload>();
-                    await AssetDownload(apl!);
+                    await HandleAsset(row);
                     break;
 
-                case "deployment":
-                    // Handle deployment payload
-                    var dpl = row.Payload.Deserialize<DeploymentPayload>();
-                    AssetCheck(dpl!);
+                case "deployment-template":
+                    // Handle template deployment payload
+                    await HandleTemplate(row);
+                    break;
 
-                    _ = Task.Run(() =>
-                    {
-                        // JSON serializer settings
-                        JsonSerializerOptions opts = new()
-                        {
-                            WriteIndented = true
-                        };
-
-                        // Send deployment OSC package
-                        var oscMsgD = new OscMessage("/DEPLOYMENT", JsonSerializer.Serialize(row.Payload, opts));
-                        sender.Send(oscMsgD);
-                    });
-
+                case "deployment-playlist":
+                    // Handle playlist deployment payload
+                    await HandlePlaylist(row);
                     break;
 
                 case "message":
-                    // Handle message payload
-                    var mpl = row.Payload.Deserialize<MessagePayload>();
-
-                    // Null Check the payload
-                    if (mpl == null)
-                    {
-                        Log("Message Payload is Null");
-                        return;
-                    }
-
-                    // Add message to Archive - regardless of station of origin
-                    AddToArchive(mpl);
-
-                    // Filter messages by station of origin for breaking news
-                    var isMatch2 = string.Equals(mpl!.Station, STATION, StringComparison.OrdinalIgnoreCase);
-                    if (!isMatch2) return;
-
-                    _ = Task.Run(() =>
-                    {
-                        // Add message to Stack
-                        AddToStack(mpl);
-
-                        if (sendTimer.Enabled == false)
-                        {
-                            StartTimer();
-                        }
-                    });
-
+                    HandleMsg(row);
                     break;
 
                 case "message-remove":
-
-                    Log("Removing message...");
-                    // Handle message payload
-                    var ampl = row.Payload.Deserialize<MessagePayload>();
-
-                    // Filter messages for this station
-                    //var isMatch3 = string.Equals(ampl!.Station, STATION, StringComparison.OrdinalIgnoreCase);
-                    //if (!isMatch3) return;
-
-                    var payloadRef = row.PayloadRef;
-
-                    MessageItem? getResult = db.GetMessage(payloadRef!);
-
-                    if (getResult == null)
-                    {
-                        Log($"No entry found for {payloadRef}");
-                        return;
-                    }
-
-                    Log($"Deleting {getResult.Name}'s Message:{getResult.Message}...");
-                    msgStack.Remove(getResult.Name!, getResult.Message!);
-                    msgArch.Remove(getResult.Name!, getResult.Message!);
-                    db.Delete(payloadRef!);
-
+                    HandleMsgRemove(row);
                     break;
             }
 
@@ -500,8 +486,278 @@ namespace ER_StationAgent
         }
 
         // =========================
+        // PAYLOAD HANDLERS
+        // =========================
+
+        private async Task HandleAsset(DeliveryEvent frame)
+        {
+            var apl = frame.Payload.Deserialize<AssetPayload>();
+
+            if (apl == null) return;
+
+            await AssetDownload(apl!);
+        }
+        private async Task HandleTemplate(DeliveryEvent frame)
+        {
+            var dtpl = frame.Payload.Deserialize<DeploymentTemplatePayload>();
+            if (dtpl == null) return;
+
+            var allAssetsValid = true;
+
+            foreach (var variable in dtpl.Variables.Where(v =>
+                (v.Kind == "image" ||
+                 v.Kind == "audio" ||
+                 v.Kind == "video")))
+            {
+                var asset = variable.Value.Deserialize<MediaAssetValue>();
+
+                if (asset == null) continue;
+
+                var assetCheck = await AssetCheck(asset);
+                Logger.Instance.Log($"Asset: {asset.Filename} - Found: {assetCheck}");
+
+                if (!assetCheck)
+                {
+                    allAssetsValid = false;
+                    break;
+                }
+
+                //Logger.Instance.Log($"Asset: {asset.Filename} - Found: {assetCheck}");
+            }
+
+            if (!allAssetsValid)
+            {
+                Logger.Instance.Log(
+                    $"Skipping template '{dtpl.TemplateName}' due to missing asset(s).");
+
+                return;
+            }
+
+            if (playlistManager != null && playlistManager.IsRunning)
+            {
+                Logger.Instance.Log("Stopping existing playlist...");
+                await playlistManager.StopAsync();
+            }
+
+            _ = Task.Run(() =>
+            {
+                var pkg = VentuzPackage.From(dtpl);
+                SendTemplateToVentuz(pkg);
+            });
+        }
+        private async Task HandlePlaylist(DeliveryEvent frame)
+        {
+            var dppl = frame.Payload.Deserialize<DeploymentPlaylistPayload>();
+            if (dppl == null) return;
+
+            var playlistId = dppl.PlaylistId;
+            var playlistName = dppl.PlaylistName;
+
+            foreach (var item in dppl.Items)
+            {
+                foreach (var variable in item.Variables.Where(v =>
+                    (v.Kind == "image" ||
+                     v.Kind == "audio" ||
+                     v.Kind == "video")))
+                {
+                    var asset = variable.Value.Deserialize<MediaAssetValue>();
+
+                    if (asset == null) continue;
+
+                    var assetCheck = await AssetCheck(asset);
+                    Logger.Instance.Log($"Asset: {asset.Filename} - Found: {assetCheck}");
+                }
+            }
+
+            if (playlistManager != null && playlistManager.IsRunning)
+            {
+                Logger.Instance.Log("Stopping existing playlist...");
+                await playlistManager.StopAsync();
+            }
+
+            playlistManager = new PlaylistManager(dppl, sender, Settings);
+            playlistManager.Start();
+        }
+        private void HandleMsg(DeliveryEvent frame)
+        {
+            // Handle message payload
+            var mpl = frame.Payload.Deserialize<MessagePayload>();
+
+            // Null Check the payload
+            if (mpl == null)
+            {
+                Logger.Instance.Log("Message Payload is Null");
+                return;
+            }
+
+            // Add message to Archive - regardless of station of origin
+            AddToArchive(mpl);
+
+            // Filter messages by station of origin for breaking news
+            var isMatch2 = string.Equals(mpl!.Station, STATION, StringComparison.OrdinalIgnoreCase);
+            if (!isMatch2) return;
+
+            _ = Task.Run(() =>
+            {
+                // Add message to Stack
+                AddToStack(mpl);
+
+                if (sendTimer.Enabled == false)
+                {
+                    StartTimer();
+                }
+            });
+        }
+        private void HandleMsgRemove(DeliveryEvent frame)
+        {
+            // Handle message payload
+
+            /*
+            //var ampl = frame.Payload.Deserialize<MessagePayload>();
+            // Filter messages for this station
+            //var isMatch3 = string.Equals(ampl!.Station, STATION, StringComparison.OrdinalIgnoreCase);
+            //if (!isMatch3) return;
+             */
+
+            var payloadRef = frame.PayloadRef;
+
+            MessageItem? getResult = db.GetMessage(payloadRef!);
+
+            if (getResult == null)
+            {
+                Logger.Instance.Log($"No entry found for {payloadRef}");
+                return;
+            }
+
+            Logger.Instance.Log($"Deleting {getResult.Name}'s Message:{getResult.Message}...");
+            msgStack.Remove(getResult.Name!, getResult.Message!);
+            msgArch.Remove(getResult.Name!, getResult.Message!);
+            db.Delete(payloadRef!);
+        }
+
+        // =========================
         // HELPERS
         // =========================
+
+        private async Task AssetDownload(AssetPayload apl)
+        {
+            // Ignore null payloads
+            if (apl == null) return;
+
+            foreach (var variable in apl.Variables)
+            {
+                if (variable.Kind == "image" ||
+                    variable.Kind == "audio" ||
+                    variable.Kind == "video")
+                {
+                    var asset = variable.Value.Deserialize<MediaAssetValue>();
+
+                    if (asset == null)
+                        continue;
+
+                    // Build asset URL and local file path
+                    var assetUrl = asset.Url;
+                    var assetName = Settings.Storage.StoragePath + "\\" + asset.Path;
+
+                    await AssetDownload(assetUrl!, assetName);
+                }
+            }
+        }
+        private async Task AssetDownload(string url, string filename)
+        {
+            if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(filename))
+            {
+                Logger.Instance.Log("Asset download failed: URL or filename was null/empty.");
+                return;
+            }
+
+            try
+            {
+                using var http = new HttpClient();
+
+                using var response = await http.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                await using var stream = await response.Content.ReadAsStreamAsync();
+                await using var fileStream = new FileStream(filename, FileMode.Create);
+
+                await stream.CopyToAsync(fileStream);
+
+                Logger.Instance.Log($"Downloaded asset: {filename}");
+            }
+            catch (HttpRequestException ex)
+            {
+                Logger.Instance.Log($"HTTP error downloading '{url}': {ex.Message}");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Logger.Instance.Log($"Access denied writing '{filename}': {ex.Message}");
+            }
+            catch (IOException ex)
+            {
+                Logger.Instance.Log($"File I/O error for '{filename}': {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Unexpected error downloading '{url}' -> '{filename}': {ex}");
+            }
+        }
+
+        private async Task<bool> AssetCheck(MediaAssetValue mav)
+        {
+            try
+            {
+                if (mav == null)
+                {
+                    Logger.Instance.Log("Asset check failed: MediaAssetValue is null.");
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(mav.Url))
+                {
+                    Logger.Instance.Log($"Asset check failed: URL missing for '{mav.Path}'.");
+                    return false;
+                }
+
+                var assetName = Path.Combine(
+                    Settings.Storage.StoragePath,
+                    mav.Path);
+
+                if (File.Exists(assetName))
+                {
+                    Logger.Instance.Log($"{assetName} - Exists in storage");
+                    return true;
+                }
+
+                Logger.Instance.Log($"{assetName} - Does not exist in storage");
+                Logger.Instance.Log("Downloading asset...");
+
+                await AssetDownload(mav.Url, assetName);
+
+                // Verify download actually succeeded
+                if (!File.Exists(assetName))
+                {
+                    Logger.Instance.Log($"Download completed but file not found: {assetName}");
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Asset check failed for '{mav?.Path}': {ex.Message}");
+                return false;
+            }
+        }
+
+        // JSON serializer settings 
+        JsonSerializerOptions tempOpts = new() { WriteIndented = true };
+        private void SendTemplateToVentuz(VentuzPackage pkg)
+        {
+            // Send deployment OSC package 
+            var oscMsgD = new OscMessage("/DEPLOYMENT_TEMPLATE", JsonSerializer.Serialize(pkg, tempOpts));
+            sender.Send(oscMsgD);
+        }
 
         private void SendMsgToVentuz(string station)
         {
@@ -517,81 +773,16 @@ namespace ER_StationAgent
                 new OscMessage($"/ARCHIVE_{language.ToUpper()}", msgArch.ExportJson(language));
             sender.Send(oscMsgM);
         }
+
         private void PrintRowInfo(DeliveryEvent de)
         {
-            Log("--------------------");
-            Log($"ID: {de.Id}");
-            Log($"Station: {de.Station}");
-            Log($"Status: {de.Status}");
-            Log($"Kind: {de.Kind}");
-            Log($"Payload: {de.Payload}");
-            Log("--------------------");
-        }
-        private async Task AssetDownload(AssetPayload apl)
-        {
-            // Ignore null payloads
-            if (apl == null) return;
-
-            // Build asset URL and local file path
-            var assetUrl = apl.ImageUrl;
-            var assetName = Settings.Storage.StoragePath + "\\" + apl.ImageFilename;
-
-            // Download asset file
-            using var http = new HttpClient();
-            using var response = await http.GetAsync(assetUrl);
-            response.EnsureSuccessStatusCode();
-
-            // Save asset to local storage
-            await using var stream = await response.Content.ReadAsStreamAsync();
-            await using var fileStream = new FileStream(assetName, FileMode.Create);
-            await stream.CopyToAsync(fileStream);
-        }
-        private async Task AssetDownload(string imageUrl, string imageFileName)
-        {
-            // Validate input parameters
-            if (imageUrl == null || imageFileName == null) return;
-
-            // Assign source URL and destination file path
-            var assetUrl = imageUrl;
-            var assetName = imageFileName;
-
-            // Download asset file
-            using var http = new HttpClient();
-            using var response = await http.GetAsync(assetUrl);
-            response.EnsureSuccessStatusCode();
-
-            // Save file to disk
-            await using var stream = await response.Content.ReadAsStreamAsync();
-            await using var fileStream = new FileStream(assetName, FileMode.Create);
-            await stream.CopyToAsync(fileStream);
-        }
-        private bool AssetCheck(DeploymentPayload dpl)
-        {
-            // Validate deployment payload
-            if (dpl == null) return false;
-
-            // No asset required
-            if (dpl.ImageUrl == null) return true;
-
-            // Build asset URL and local file path
-            var assetUrl = dpl.ImageUrl;
-            var assetName = Settings.Storage.StoragePath + "\\" + dpl.ImageFilename;
-
-            // Check if asset already exists
-            if (File.Exists(assetName))
-            {
-                Log(assetName + " - Exists in storage");
-                return true;
-            }
-            else
-            {
-                Log(assetName + " - Does not exist in storage");
-                Log("Downloading Asset...");
-
-                // Download missing asset in background
-                _ = Task.Run(() => AssetDownload(assetUrl!, assetName));
-                return true;
-            }
+            Logger.Instance.Log("--------------------");
+            Logger.Instance.Log($"ID: {de.Id}");
+            Logger.Instance.Log($"Station: {de.Station}");
+            Logger.Instance.Log($"Status: {de.Status}");
+            Logger.Instance.Log($"Kind: {de.Kind}");
+            Logger.Instance.Log($"Payload: {de.Payload}");
+            Logger.Instance.Log("--------------------");
         }
         private void AddToDB(DeliveryEvent delEvent)
         {
@@ -613,7 +804,7 @@ namespace ER_StationAgent
             // Store event in database
             db.Post(delEvent.Id, delEvent.Station, delEvent.Kind, delEvent.PayloadRef, delEvent.Payload, ts);
 
-            Log("Entry added to Database");
+            Logger.Instance.Log("Entry added to Database");
         }
         private void AddToStack(MessagePayload mpl)
         {
@@ -625,7 +816,7 @@ namespace ER_StationAgent
                     mpl!.Name!,
                     mpl.Message!,
                     mpl.Station!,
-                    mpl.Language!,
+                    //mpl.Language!,
                     mpl.Timestamp
                 );
 
@@ -675,14 +866,14 @@ namespace ER_StationAgent
 
                 // Log result based on response status
                 if (!res.IsSuccessStatusCode)
-                    Log($"ACK FAILED {eventId}: {body}");
+                    Logger.Instance.Log($"ACK FAILED {eventId}: {body}");
                 else
-                    Log($"ACK OK {eventId}");
+                    Logger.Instance.Log($"ACK OK {eventId}");
             }
             catch (Exception ex)
             {
                 // Log any unexpected errors during ACK
-                Log($"ACK ERROR {eventId}: {ex.Message}");
+                Logger.Instance.Log($"ACK ERROR {eventId}: {ex.Message}");
             }
         }
         private void SafeUI(Action action)
@@ -699,7 +890,7 @@ namespace ER_StationAgent
             SafeUI(() =>
             {
                 rtbLog.AppendText(
-                    $"[{DateTime.Now:HH:mm:ss}] {msg}\n");
+                    $"{msg}\n");
             });
         }
         public void StartTimer()
@@ -717,7 +908,6 @@ namespace ER_StationAgent
                 SafeUI(() =>
                 {
                     var s = msgStack.ExportJson(STATION!);
-                    //Log(s);
 
                     SendMsgToVentuz(STATION!);
 
@@ -733,7 +923,7 @@ namespace ER_StationAgent
 
                 sendTimer.Stop();
                 sendTimer.Enabled = false;
-                Log($"Timer Status: {sendTimer.Enabled}");
+                Logger.Instance.Log($"Timer Status: {sendTimer.Enabled}");
             }
         }
     }
@@ -788,52 +978,104 @@ namespace ER_StationAgent
         // Last update timestamp
         [JsonPropertyName("updated_at")] public string? UpdatedAt { get; set; }
     }
+
     public sealed class AssetPayload
     {
-        // Payload type
-        [JsonPropertyName("kind")] public string? Kind { get; set; }
+        [JsonPropertyName("kind")]
+        public string Kind { get; set; } = string.Empty;
 
-        // Image download URL
-        [JsonPropertyName("image_url")] public string? ImageUrl { get; set; }
+        [JsonPropertyName("timestamp")]
+        public DateTime Timestamp { get; set; }
 
-        // Event timestamp
-        [JsonPropertyName("timestamp")] public DateTime Timestamp { get; set; }
+        [JsonPropertyName("variables")]
+        public List<VariableDefinition> Variables { get; set; } = [];
 
-        // Runtime instance name
-        [JsonPropertyName("instance_name")] public string? InstanceName { get; set; }
+        [JsonPropertyName("instance_name")]
+        public string InstanceName { get; set; } = string.Empty;
 
-        // Template identifier
-        [JsonPropertyName("template_name")] public string? TemplateName { get; set; }
-
-        // Local filename for storage
-        [JsonPropertyName("image_filename")] public string? ImageFilename { get; set; }
+        [JsonPropertyName("template_name")]
+        public string TemplateName { get; set; } = string.Empty;
     }
-    public sealed class DeploymentPayload
+    public sealed class DeploymentTemplatePayload
     {
-        // Payload type
-        [JsonPropertyName("kind")] public string? Kind { get; set; }
+        [JsonPropertyName("kind")]
+        public string Kind { get; set; } = string.Empty;
 
-        // Arabic text content
-        [JsonPropertyName("text_ar")] public string? TextAr { get; set; }
+        [JsonPropertyName("timestamp")]
+        public DateTime Timestamp { get; set; }
 
-        // English text content
-        [JsonPropertyName("text_en")] public string? TextEn { get; set; }
+        [JsonPropertyName("variables")]
+        public List<VariableDefinition> Variables { get; set; } = [];
 
-        // Optional image URL
-        [JsonPropertyName("image_url")] public string? ImageUrl { get; set; }
+        [JsonPropertyName("instance_name")]
+        public string InstanceName { get; set; } = string.Empty;
 
-        // Event timestamp
-        [JsonPropertyName("timestamp")] public DateTime Timestamp { get; set; }
-
-        // Runtime instance name
-        [JsonPropertyName("instance_name")] public string? InstanceName { get; set; }
-
-        // Template identifier
-        [JsonPropertyName("template_name")] public string? TemplateName { get; set; }
-
-        // Local filename for storage
-        [JsonPropertyName("image_filename")] public string? ImageFilename { get; set; }
+        [JsonPropertyName("template_name")]
+        public string TemplateName { get; set; } = string.Empty;
     }
+    public sealed class DeploymentPlaylistPayload
+    {
+        [JsonPropertyName("kind")]
+        public string Kind { get; set; } = string.Empty;
+
+        [JsonPropertyName("timestamp")]
+        public DateTime Timestamp { get; set; }
+
+        [JsonPropertyName("playlist_id")]
+        public string PlaylistId { get; set; } = string.Empty;
+
+        [JsonPropertyName("playlist_name")]
+        public string PlaylistName { get; set; } = string.Empty;
+
+        [JsonPropertyName("items")]
+        public List<PlaylistItem> Items { get; set; } = [];
+    }
+    public sealed class PlaylistItem
+    {
+        [JsonPropertyName("kind")]
+        public string Kind { get; set; } = string.Empty;
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("position")]
+        public int Position { get; set; }
+
+        [JsonPropertyName("duration_s")]
+        public int DurationSeconds { get; set; }
+
+        [JsonPropertyName("template_name")]
+        public string TemplateName { get; set; } = string.Empty;
+
+        [JsonPropertyName("variables")]
+        public List<VariableDefinition> Variables { get; set; } = [];
+    }
+    public sealed class VariableDefinition
+    {
+        [JsonPropertyName("kind")]
+        public string Kind { get; set; } = string.Empty;
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("label")]
+        public string Label { get; set; } = string.Empty;
+
+        [JsonPropertyName("value")]
+        public JsonElement Value { get; set; }
+    }
+    public sealed class MediaAssetValue
+    {
+        [JsonPropertyName("url")]
+        public string Url { get; set; } = string.Empty;
+
+        [JsonPropertyName("path")]
+        public string Path { get; set; } = string.Empty;
+
+        [JsonPropertyName("filename")]
+        public string Filename { get; set; } = string.Empty;
+    }
+
     public sealed class MessagePayload
     {
         // Payload type
@@ -885,6 +1127,43 @@ namespace ER_StationAgent
         {
         }
     }
+
+    public sealed class VentuzPackage
+    {
+        [JsonPropertyName("template_name")]
+        public string TemplateName { get; set; } = string.Empty;
+
+        [JsonPropertyName("variables")]
+        public List<VariableDefinition> Variables { get; set; } = [];
+
+        [JsonPropertyName("duration_s")]
+        public int? DurationSeconds { get; set; }
+
+        public static VentuzPackage From(PlaylistItem item)
+        {
+            ArgumentNullException.ThrowIfNull(item);
+
+            return new VentuzPackage
+            {
+                TemplateName = item.TemplateName,
+                Variables = item.Variables,
+                DurationSeconds = item.DurationSeconds
+            };
+        }
+
+        public static VentuzPackage From(DeploymentTemplatePayload payload)
+        {
+            ArgumentNullException.ThrowIfNull(payload);
+
+            return new VentuzPackage
+            {
+                TemplateName = payload.TemplateName,
+                Variables = payload.Variables,
+                DurationSeconds = null
+            };
+        }
+    }
+
     public class AppSettings
     {
         // API configuration
@@ -895,6 +1174,12 @@ namespace ER_StationAgent
 
         // Ventuz/OSC configuration
         public VentuzSettings Ventuz { get; set; } = new();
+
+        // Station Config
+        public string Station { get; set; } = "";
+
+        // Allowed Station List
+        public string[] AllowedStations { get; set; } = Array.Empty<string>();
     }
     public class ApiSettings
     {

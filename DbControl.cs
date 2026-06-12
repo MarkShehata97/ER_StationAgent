@@ -1,6 +1,7 @@
 ﻿using ER_StationAgent;
 using Microsoft.Data.Sqlite;
 using System.Text.Json;
+using static System.Collections.Specialized.BitVector32;
 
 public class DbControl
 {
@@ -173,6 +174,46 @@ public class DbControl
 
         // Execute deletion
         cmd.ExecuteNonQuery();
+    }
+
+    // ================================
+    // LATEST DEPLOYMENT - UPON RESTART
+    // ================================
+    public DeliveryEvent? GetLatestDeployment(string station)
+    {
+        using var con = new SqliteConnection(_connectionString);
+        con.Open();
+
+        var cmd = con.CreateCommand();
+
+        cmd.CommandText =
+        @"
+        SELECT id, station, kind, payload_ref, payload, timestamp
+        FROM events
+        WHERE station = $station
+          AND kind IN ('deployment-template', 'deployment-playlist')
+        ORDER BY timestamp DESC
+        LIMIT 1;
+        "
+        ;
+
+        cmd.Parameters.AddWithValue("$station", station);
+
+        using var reader = cmd.ExecuteReader();
+
+        if (!reader.Read())
+            return null;
+
+        return new DeliveryEvent
+        {
+            Id = reader.GetString(0),
+            Station = reader.GetString(1),
+            Kind = reader.GetString(2),
+            PayloadRef = reader.GetString(3),
+            Payload = JsonSerializer.Deserialize<JsonElement>(
+                reader.GetString(4)),
+            CreatedAt = reader.GetString(5)
+        };
     }
 }
 

@@ -15,7 +15,7 @@ namespace ER_StationAgent
         public BindingList<Message> MessageQueue => _queue;
 
         // Adds a new message to the appropriate language stack
-        public void Push(string name, string message, string station, string language, DateTime timestamp)
+        public void Push(string name, string message, string station, DateTime timestamp)
         {
             // Create message object
             var item = new Message(name, message, station, timestamp);
