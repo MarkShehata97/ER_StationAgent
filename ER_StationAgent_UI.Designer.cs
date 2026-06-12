@@ -380,7 +380,7 @@
             dataGridViewEn.BackgroundColor = Color.FromArgb(21, 23, 30);
             dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle1.BackColor = Color.FromArgb(15, 17, 42);
-            dataGridViewCellStyle1.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle1.Font = new Font("Segoe UI", 10F);
             dataGridViewCellStyle1.ForeColor = SystemColors.Control;
             dataGridViewCellStyle1.SelectionBackColor = SystemColors.HotTrack;
             dataGridViewCellStyle1.SelectionForeColor = SystemColors.HighlightText;
@@ -389,7 +389,7 @@
             dataGridViewEn.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle2.BackColor = Color.FromArgb(21, 23, 30);
-            dataGridViewCellStyle2.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle2.Font = new Font("Segoe UI", 8F);
             dataGridViewCellStyle2.ForeColor = SystemColors.HighlightText;
             dataGridViewCellStyle2.SelectionBackColor = SystemColors.HotTrack;
             dataGridViewCellStyle2.SelectionForeColor = SystemColors.HighlightText;

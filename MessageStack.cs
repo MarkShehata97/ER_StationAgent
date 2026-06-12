@@ -133,7 +133,7 @@ namespace ER_StationAgent
     }
 
     // Immutable message record stored in memory and disk
-    internal record Message(
+    public record Message(
         string Name,
         string Text,
         string Station,

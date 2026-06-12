@@ -203,7 +203,7 @@ namespace ER_StationAgent
         private void dataGridViewEn_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
             // Record successful cell edit.
-             Logger.Instance.Log($"Cell [{e.RowIndex},{e.ColumnIndex}] edit has been applied.");
+            Logger.Instance.Log($"Cell [{e.RowIndex},{e.ColumnIndex}] edit has been applied.");
 
             // Persist changes to storage.
             // msgStack.Save(STATION!);
@@ -758,7 +758,6 @@ namespace ER_StationAgent
             var oscMsgD = new OscMessage("/DEPLOYMENT_TEMPLATE", JsonSerializer.Serialize(pkg, tempOpts));
             sender.Send(oscMsgD);
         }
-
         private void SendMsgToVentuz(string station)
         {
             // Send message OSC update
