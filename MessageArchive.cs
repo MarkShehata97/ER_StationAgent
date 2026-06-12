@@ -31,7 +31,7 @@ namespace ER_StationAgent
         public void Push(string name, string message, string station, string language, DateTime timestamp)
         {
             // Create message object
-            var item = new Message(name, message, station, timestamp);
+            var item = new Message(name, message, station, language, timestamp);
 
             var isAra = IsArabic(language);
 

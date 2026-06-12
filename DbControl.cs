@@ -120,6 +120,7 @@ public class DbControl
             payload.Name ?? "",
             payload.Message ?? "",
             payload.Station ?? "",
+            payload.Language ?? "",
             payload.Timestamp
         );
     }

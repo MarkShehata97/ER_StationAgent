@@ -183,6 +183,9 @@ namespace ER_StationAgent
         [JsonPropertyName("station")]
         public string? Station { get; set; }
 
+        [JsonPropertyName("language")]
+        public string? Language { get; set; }
+
         [JsonPropertyName("timestamp")]
         public DateTime Timestamp { get; set; }
 
@@ -190,11 +193,13 @@ namespace ER_StationAgent
             string name,
             string message,
             string station,
+            string language,
             DateTime timestamp)
         {
             Name = name;
             Message = message;
             Station = station;
+            Language = language;
             Timestamp = timestamp;
         }
 
